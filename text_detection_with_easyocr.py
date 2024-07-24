@@ -1,6 +1,7 @@
 import cv2
 import easyocr
 import numpy as np
+import streamlit as st
 
 # Initialize EasyOCR reader
 reader = easyocr.Reader(['en'])
@@ -23,7 +24,6 @@ def detect_text(image, region="full"):
     Raises:
         ValueError: If an invalid region is specified.
     """
-
     if region == "full":
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     elif region == "subtitle":
@@ -95,27 +95,24 @@ def analyze_video(video_path, interval=1):
     cap.release()
     return results
 
-## Function to analyze video and print results
-def analyze_and_print_results(video_path, video_name):
-    """
-    This function analyzes a video and prints a summary of the scene types and detected text.
+# Streamlit dashboard
+st.title("Video Text Detection")
 
-    Args:
-        video_path (str): The path to the video file.
-        video_name (str): The name of the video for printing results.
-    """
-    results = analyze_video(video_path)
+# Upload video file
+uploaded_file = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov", "mkv"])
 
-    print(f"\nResults for {video_name}:")
-    for timestamp, scene_type, text in results:
-        print(f"Timestamp: {timestamp:.2f}s, Scene Type: {scene_type}")
-        if scene_type != "Textless":
-            print(f"Detected Text: {text[:100]}...")
+if uploaded_file is not None:
+    video_path = f"/tmp/{uploaded_file.name}"
+    with open(video_path, mode='wb') as f:
+        f.write(uploaded_file.read())
 
-# Analyze Video A
-video_a_path = "/Users/dhananjay/Downloads/test2.mp4"
-analyze_and_print_results(video_a_path, "Video A")
+    if st.button("Process Video"):
+        st.write("Processing...")
+        results = analyze_video(video_path)
 
-# Analyze Video B
-# video_b_path = "path/to/video_b.mp4"
-# analyze_and_print_results(video_b_path, "Video B")
+        st.write(f"Results for {uploaded_file.name}:")
+        for timestamp, scene_type, text in results:
+            st.write(f"Timestamp: {timestamp:.2f}s, Scene Type: {scene_type}")
+            if scene_type != "Textless":
+                st.write(f"Detected Text: {text[:100]}...")
+
