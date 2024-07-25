@@ -72,13 +72,16 @@ def analyze_video(video_path, interval=1):
         interval (int, optional): The interval (in seconds) between analyzed frames. Defaults to 1.
 
     Returns:
-        list: A list of tuples containing (timestamp, scene type, detected text) for each analyzed frame.
+        list: A list of tuples containing (start_timestamp, end_timestamp, scene type, detected text) for each detected text segment.
     """
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     results = []
+    text_start = None
+    text_type = None
+    text_content = ""
 
     for frame_number in range(0, frame_count, int(fps * interval)):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
@@ -90,7 +93,22 @@ def analyze_video(video_path, interval=1):
         timestamp = frame_number / fps
         scene_type, detected_text = analyze_frame(frame)
 
-        results.append((timestamp, scene_type, detected_text))
+        if scene_type != "Textless":
+            if text_start is None:
+                text_start = timestamp
+                text_type = scene_type
+                text_content = detected_text
+            else:
+                text_content += " " + detected_text
+        else:
+            if text_start is not None:
+                results.append((text_start, timestamp, text_type, text_content.strip()))
+                text_start = None
+                text_type = None
+                text_content = ""
+
+    if text_start is not None:
+        results.append((text_start, timestamp, text_type, text_content.strip()))
 
     cap.release()
     return results
@@ -111,8 +129,7 @@ if uploaded_file is not None:
         results = analyze_video(video_path)
 
         st.write(f"Results for {uploaded_file.name}:")
-        for timestamp, scene_type, text in results:
-            st.write(f"Timestamp: {timestamp:.2f}s, Scene Type: {scene_type}")
+        for start_timestamp, end_timestamp, scene_type, text in results:
+            st.write(f"From {start_timestamp:.2f}s to {end_timestamp:.2f}s, Scene Type: {scene_type}")
             if scene_type != "Textless":
                 st.write(f"Detected Text: {text[:100]}...")
-
