@@ -2,6 +2,7 @@ import cv2
 import easyocr
 import numpy as np
 import streamlit as st
+from datetime import timedelta
 
 # Initialize EasyOCR reader
 reader = easyocr.Reader(['en'])
@@ -75,11 +76,15 @@ def analyze_video(video_path, interval=1):
         list: A list of tuples containing (start_timestamp, end_timestamp, scene type, detected text) for each detected text segment.
     """
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError("Error opening video file")
+
     fps = cap.get(cv2.CAP_PROP_FPS)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     results = []
     text_start = None
+    text_end = None
     text_type = None
     text_content = ""
 
@@ -100,15 +105,19 @@ def analyze_video(video_path, interval=1):
                 text_content = detected_text
             else:
                 text_content += " " + detected_text
+            text_end = timestamp
         else:
             if text_start is not None:
-                results.append((text_start, timestamp, text_type, text_content.strip()))
+                results.append((text_start, text_end, text_type, text_content.strip()))
                 text_start = None
                 text_type = None
                 text_content = ""
 
+        # Progress feedback
+        st.progress(frame_number / frame_count)
+
     if text_start is not None:
-        results.append((text_start, timestamp, text_type, text_content.strip()))
+        results.append((text_start, text_end, text_type, text_content.strip()))
 
     cap.release()
     return results
@@ -130,6 +139,8 @@ if uploaded_file is not None:
 
         st.write(f"Results for {uploaded_file.name}:")
         for start_timestamp, end_timestamp, scene_type, text in results:
-            st.write(f"From {start_timestamp:.2f}s to {end_timestamp:.2f}s, Scene Type: {scene_type}")
+            start_time_str = str(timedelta(seconds=start_timestamp))
+            end_time_str = str(timedelta(seconds=end_timestamp))
+            st.write(f"From {start_time_str} to {end_time_str}, Scene Type: {scene_type}")
             if scene_type != "Textless":
                 st.write(f"Detected Text: {text[:100]}...")
