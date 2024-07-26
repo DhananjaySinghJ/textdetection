@@ -144,3 +144,4 @@ if uploaded_file is not None:
             st.write(f"From {start_time_str} to {end_time_str}, Scene Type: {scene_type}")
             if scene_type != "Textless":
                 st.write(f"Detected Text: {text[:100]}...")
+#
