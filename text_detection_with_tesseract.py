@@ -260,6 +260,7 @@ def preprocess_image(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     gray = cv2.medianBlur(gray, 3)
     gray = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    gray = cv2.fastNlMeansDenoising(gray, None, 30, 7, 21)
     return gray
 
 ## Function to detect text in an image
@@ -290,7 +291,7 @@ def detect_text(image, region="full"):
         raise ValueError("Invalid region specified")
 
     # Detect text using pytesseract
-    config = "--oem 3 --psm 6"  # You can adjust the PSM (Page Segmentation Mode) and OEM (OCR Engine Mode)
+    config = "--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     text = pytesseract.image_to_string(gray, config=config)
     return text.strip(), len(text.strip()) > 0
 
