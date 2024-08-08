@@ -61,24 +61,29 @@ def process_video(video_path, start_time_ms, target_fps):
     return results
 
 def main():
+    st.set_page_config(page_title="Video Text Extraction and Classification", layout="wide")
+
     st.title("Video Text Extraction and Classification")
 
-    video_file = st.file_uploader("Upload Video", type=["mp4", "mov", "avi"])
+    with st.sidebar:
+        st.subheader("Video Settings")
+        video_file = st.file_uploader("Upload Video", type=["mp4", "mov", "avi"])
+        start_time_ms = st.slider("Start Time (ms)", 0, 600000, 0)
+        target_fps = st.slider("Target FPS", 1, 60, 30)
+
     if video_file is not None:
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(video_file.read())
             temp_file_path = tmp_file.name
 
-        start_time_ms = st.slider("Start Time (ms)", 0, 600000, 0)
-        target_fps = st.slider("Target FPS", 1, 60, 30)
-
         if st.button("Process Video"):
             results = process_video(temp_file_path, start_time_ms, target_fps)
 
             if results:
-                st.write(f"Processed {len(results)} frames")
+                st.subheader("Extracted Text")
                 for frame_count, text, time_str in results:
-                    st.write(f"Frame {frame_count}: Extracted Text: {text} (Time: {time_str})")
+                    with st.expander(f"Frame {frame_count} (Time: {time_str})"):
+                        st.write(text)
             else:
                 st.write("No text detected or video processing failed.")
 
