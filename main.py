@@ -34,9 +34,13 @@ def process_video(video_path, start_time_ms, target_fps):
 
     frame_count = 0
     original_fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     frame_interval = int(original_fps / target_fps)
 
     results = []
+    progress_bar = st.progress(0)
+    progress_text = st.empty()
+
     with ThreadPoolExecutor() as executor:
         while cap.isOpened():
             ret, frame = cap.read()
@@ -57,7 +61,15 @@ def process_video(video_path, start_time_ms, target_fps):
             results.append((frame_count, text, time_str))
             frame_count += 1
 
+            # Update the progress bar
+            progress = frame_count / total_frames
+            progress_bar.progress(progress)
+            progress_text.text(f"Processing frame {frame_count} of {total_frames} ({progress * 100:.2f}%)")
+
     cap.release()
+    progress_bar.empty()  # Remove the progress bar when done
+    progress_text.empty()  # Remove the progress text when done
+
     return results
 
 def main():
@@ -91,6 +103,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 # from flask import Flask, render_template, request
 # import cv2
@@ -183,4 +196,5 @@ if __name__ == "__main__":
 
 # if __name__ == "__main__":
 #     app.run(debug=True)
+
 
