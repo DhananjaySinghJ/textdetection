@@ -11,25 +11,36 @@ import numpy as np
 pytesseract.pytesseract.tesseract_cmd = r'/opt/homebrew/bin/tesseract'
 
 def preprocess_frame(frame):
-    resized_frame = cv2.resize(frame, (320, 180))  # Further reduce frame size
+    resized_frame = cv2.resize(frame, (320, 180))  # Resize frame
     gray_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2GRAY)
     _, thresh_frame = cv2.threshold(gray_frame, 150, 255, cv2.THRESH_BINARY)
     return thresh_frame
 
-def extract_text_from_frame(frame):
+def extract_text_from_frame(frame, is_subtitle=False):
     preprocessing_frame = preprocess_frame(frame)
-    data = pytesseract.image_to_data(preprocessing_frame, config='--oem 1 --psm 6', output_type=Output.DICT)
+    
+    if is_subtitle:
+        # Focus on the bottom third of the frame for subtitles
+        height = preprocessing_frame.shape[0]
+        subtitle_region = preprocessing_frame[int(2*height/3):, :]
+        data = pytesseract.image_to_data(subtitle_region, config='--oem 1 --psm 6', output_type=Output.DICT)
+    else:
+        data = pytesseract.image_to_data(preprocessing_frame, config='--oem 1 --psm 6', output_type=Output.DICT)
+    
     text = ' '.join([word for i, word in enumerate(data['text']) if float(data['conf'][i]) >= 70])
     return text.strip()
 
-def classify_frame(text):
+def classify_frame(text, subtitle_text):
     word_count = len(text.split())
     if word_count == 0:
-        return "textless"
+        frame_class = "textless"
     elif word_count < 5:
-        return "semi-textless"
+        frame_class = "semi-textless"
     else:
-        return "texted"
+        frame_class = "texted"
+    
+    has_subtitle = len(subtitle_text) > 0
+    return frame_class, has_subtitle
 
 @st.cache_data
 def process_video(video_path, start_time_ms, target_fps):
@@ -60,26 +71,27 @@ def process_video(video_path, start_time_ms, target_fps):
                 continue
             
             if frame_count % frame_interval == 0:
-                future = executor.submit(extract_text_from_frame, frame)
-                futures.append((frame_count, frame_position_ms, future))
+                future_text = executor.submit(extract_text_from_frame, frame)
+                future_subtitle = executor.submit(extract_text_from_frame, frame, is_subtitle=True)
+                futures.append((frame_count, frame_position_ms, future_text, future_subtitle))
             
             frame_count += 1
             
-            # Update progress every 10 frames
             if frame_count % 10 == 0:
                 progress = frame_count / total_frames
                 progress_bar.progress(progress)
                 progress_text.text(f"Processing frame {frame_count} of {total_frames} ({progress * 100:.2f}%)")
     
-        for frame_count, frame_position_ms, future in futures:
-            text = future.result()
-            classification = classify_frame(text)
+        for frame_count, frame_position_ms, future_text, future_subtitle in futures:
+            text = future_text.result()
+            subtitle_text = future_subtitle.result()
+            classification, has_subtitle = classify_frame(text, subtitle_text)
             
             minutes, seconds = divmod(frame_position_ms // 1000, 60)
             milliseconds = int(frame_position_ms % 1000)
             time_str = f"{int(minutes):02d}:{int(seconds):02d}.{milliseconds:03d}"
             
-            results.append((frame_count, text, time_str, classification))
+            results.append((frame_count, text, subtitle_text, time_str, classification, has_subtitle))
     
     cap.release()
     progress_bar.empty()
@@ -106,11 +118,15 @@ def main():
             
             if results:
                 st.subheader("Extracted Text and Classification")
-                for frame_count, text, time_str, classification in results:
-                    with st.expander(f"Frame {frame_count} (Time: {time_str}) - {classification.capitalize()}"):
-                        st.write(text)
+                for frame_count, text, subtitle_text, time_str, classification, has_subtitle in results:
+                    subtitle_status = "Subtitle detected" if has_subtitle else "No subtitle"
+                    with st.expander(f"Frame {frame_count} (Time: {time_str}) - {classification.capitalize()} - {subtitle_status}"):
+                        st.write("Main text:", text)
+                        if has_subtitle:
+                            st.write("Subtitle:", subtitle_text)
                 
-                classifications = [r[3] for r in results]
+                classifications = [r[4] for r in results]
+                subtitle_count = sum(r[5] for r in results)
                 texted_count = classifications.count("texted")
                 semi_textless_count = classifications.count("semi-textless")
                 textless_count = classifications.count("textless")
@@ -119,11 +135,13 @@ def main():
                 st.write(f"Texted frames: {texted_count}")
                 st.write(f"Semi-textless frames: {semi_textless_count}")
                 st.write(f"Textless frames: {textless_count}")
+                st.write(f"Frames with subtitles: {subtitle_count}")
                 
                 st.bar_chart({
                     "Texted": texted_count,
                     "Semi-textless": semi_textless_count,
-                    "Textless": textless_count
+                    "Textless": textless_count,
+                    "With Subtitles": subtitle_count
                 })
             else:
                 st.write("No text detected or video processing failed.")
@@ -225,5 +243,4 @@ if __name__ == "__main__":
 
 # if __name__ == "__main__":
 #     app.run(debug=True)
-
 
