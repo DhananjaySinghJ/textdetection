@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Text Extraction</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.0.2/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1F2937; /* Dark background */
+        }
+        .card {
+            background-color: rgba(255, 255, 255, 0.1); /* Transparent card background */
+            backdrop-filter: blur(10px); /* Blur effect */
+        }
+        .input-field {
+            background-color: rgba(255, 255, 255, 0.2); /* Transparent input fields */
+            color: #E5E7EB; /* Light text color */
+        }
+        .input-field::placeholder {
+            color: #9CA3AF; /* Placeholder text color */
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+    <div class="container mx-auto py-8">
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-white">Video Text Extraction</h1>
+            <p class="mt-4 text-lg text-gray-400">Upload a video and extract text from frames</p>
+        </div>
+
+        <div class="card p-8 rounded-lg shadow-lg max-w-2xl mx-auto">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-6">
+                    <label class="block text-sm font-bold mb-2" for="video_file">Upload Video:</label>
+                    <input type="file" name="video_file" id="video_file" class="input-field shadow border rounded w-full py-2 px-3 focus:outline-none focus:shadow-outline" required>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold mb-2" for="start_time_ms">Start Time (ms):</label>
+                    <input type="number" name="start_time_ms" id="start_time_ms" class="input-field shadow border rounded w-full py-2 px-3 focus:outline-none focus:shadow-outline" value="0" min="0">
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold mb-2" for="target_fps">Target FPS:</label>
+                    <input type="number" name="target_fps" id="target_fps" class="input-field shadow border rounded w-full py-2 px-3 focus:outline-none focus:shadow-outline" value="30" min="1" max="60">
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Process Video</button>
+                </div>
+            </form>
+        </div>
+
+        {% if extracted_text %}
+        <div class="mt-10">
+            <h2 class="text-2xl font-semibold text-white text-center">Extracted Text</h2>
+            <div class="mt-4 space-y-4">
+                {% for item in extracted_text %}
+                <div class="card p-4 rounded-lg shadow-lg">
+                    <h3 class="text-lg font-semibold">Frame {{ item.frame }} (Time: {{ item.time }})</h3>
+                    <p class="text-gray-300">{{ item.text }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
